@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+{% block title %}Vote — EVM{% endblock %}
+{% block content %}
+<div class="vote-page">
+  <div class="vote-header">
+    <div class="vote-header-text">
+      <h2>🗳️ {{ settings.election_name }}</h2>
+      <p>Election Date: {{ settings.election_date }} &nbsp;|&nbsp; Voter: <strong>{{ voter_name }}</strong></p>
+    </div>
+    <div class="vote-badge">✅ Authenticated Voter</div>
+  </div>
+  <div class="vote-instruction">
+    ⚠️ <strong>Instructions:</strong> &nbsp;Select ONE candidate and press <em>Cast Vote</em>. Your vote is final and cannot be changed.
+  </div>
+  <div class="candidates-grid">
+    {% for c in candidates %}
+    <div class="candidate-card" id="ccard-{{ c.id }}"
+         style="--card-color:{{ c.party_color }};"
+         onclick="selectCandidate({{ c.id }}, '{{ c.name|e }}', '{{ c.party|e }}', '{{ c.party_symbol }}')">
+      <div class="candidate-num">{{ loop.index }}</div>
+      <div class="selected-check"><i class="fa fa-check"></i></div>
+      {% if c.symbol_image %}
+        <img src="{{ url_for('static', filename='uploads/symbols/' + c.symbol_image) }}"
+             class="candidate-symbol-img" alt="{{ c.party_symbol }}"/>
+      {% else %}
+        <span class="candidate-symbol">{{ c.party_symbol }}</span>
+      {% endif %}
+      <div class="candidate-name">{{ c.name }}</div>
+      <div class="candidate-party">{{ c.party }}</div>
+    </div>
+    {% endfor %}
+
+    <!-- NOTA uses id=-1 to avoid conflict with real candidate ids -->
+    <div class="candidate-card nota-card" id="ccard--1"
+         onclick="selectCandidate(-1,'None of the Above','NOTA','🚫')">
+      <div class="candidate-num">N</div>
+      <div class="selected-check"><i class="fa fa-check"></i></div>
+      <span class="candidate-symbol">🚫</span>
+      <div class="candidate-name">NOTA</div>
+      <div class="candidate-party">None of the Above</div>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:32px;">
+    <button class="btn-primary" id="vote_btn" onclick="openConfirmModal()" disabled
+            style="font-size:18px;padding:18px 48px;opacity:0.5;cursor:not-allowed;">
+      <i class="fa fa-vote-yea"></i> Cast Vote
+    </button>
+    <p style="margin-top:12px;font-size:13px;color:var(--text-muted);">
+      Select a candidate above to enable voting
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Confirmation Modal
+     Fixed: max-height + overflow-y scroll so
+     the Confirm button is ALWAYS visible
+══════════════════════════════════════════ -->
+<div class="modal-overlay" id="confirm_modal">
+  <div class="modal" style="
+    max-height: 88vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 0;
+  ">
+
+    <!-- Scrollable content area -->
+    <div style="flex:1;overflow-y:auto;padding:0 4px;">
+      <div class="modal-icon">🗳️</div>
+      <h3 style="margin-bottom:4px;">Confirm Your Vote</h3>
+      <p style="margin-bottom:12px;">You are about to vote for:</p>
+
+      <div class="modal-candidate">
+        <span class="big-symbol" id="modal_symbol"></span>
+        <div class="big-name"  id="modal_name"></div>
+        <div class="big-party" id="modal_party"></div>
+      </div>
+
+      <!-- Fingerprint scanner -->
+      <div id="fp_modal_box" style="margin:12px 0;">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;
+                    color:var(--text-muted);text-align:center;margin-bottom:8px;
+                    letter-spacing:.5px;">
+          🔐 FINAL IDENTITY CONFIRMATION
+        </div>
+
+        <!-- Scanner canvas — capped height so it never pushes buttons off screen -->
+        <div id="fp_scanner_vote" style="
+          background: rgba(10,20,40,0.7);
+          border: 1px solid rgba(0,150,255,0.2);
+          border-radius: 12px;
+          overflow: hidden;
+          max-width: 240px;
+          max-height: 300px;
+          margin: 0 auto;
+        ">
+          <div style="text-align:center;padding:20px;color:var(--text-muted);">
+            <div style="font-size:30px;">👆</div>
+            <div style="font-size:13px;margin-top:6px;">Click below to scan</div>
+          </div>
+        </div>
+
+        <button id="fp_vote_btn" onclick="doVoteFP()" style="
+          width:100%;margin-top:10px;padding:11px;
+          background:linear-gradient(135deg,#1a4fa0,#0e3070);
+          color:#fff;border:none;border-radius:8px;
+          font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;
+        ">
+          🔐 Scan Fingerprint to Confirm
+        </button>
+
+        <p style="text-align:center;font-size:12px;color:var(--text-muted);margin:6px 0 0;">
+          No fingerprint?
+          <a href="#" onclick="skipFp(event)" style="color:var(--india-gold);">
+            Skip verification
+          </a>
+        </p>
+      </div>
+
+      <!-- Booth face capture -->
+      <div id="booth_face_box" style="margin:12px 0;border-top:1px solid rgba(255,255,255,0.07);padding-top:12px;">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;color:var(--text-muted);text-align:center;margin-bottom:8px;letter-spacing:.5px;">
+          📷 BOOTH FACE CONFIRMATION
+        </div>
+        <div style="position:relative;display:inline-block;width:100%;max-width:240px;margin:0 auto;display:block;">
+          <video id="booth_video" autoplay muted playsinline
+            style="width:100%;max-width:240px;border-radius:8px;background:#111;display:block;margin:0 auto;"></video>
+          <canvas id="booth_canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
+        </div>
+        <div id="booth_cam_status" style="font-size:12px;color:#aaa;text-align:center;margin:4px 0;">Camera off</div>
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;flex-wrap:wrap;">
+          <button id="booth_start_btn" onclick="startBoothCamera()" style="padding:7px 14px;background:#1a4fa0;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;">📷 Start Camera</button>
+          <button id="booth_capture_btn" onclick="captureBoothFace()" disabled style="padding:7px 14px;background:#138808;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;opacity:.5;">📸 Capture Face</button>
+          <button onclick="skipBoothFace()" style="padding:7px 14px;background:transparent;color:#FFB700;border:1px solid #FFB700;border-radius:6px;font-size:13px;cursor:pointer;">⏭ Skip</button>
+        </div>
+        <div id="booth_face_done" style="display:none;color:#00e676;font-size:12px;text-align:center;margin-top:6px;">✅ Face captured at booth</div>
+      </div>
+
+      <p style="font-size:12px;color:var(--danger);margin:8px 0 0;text-align:center;">
+        ⚠️ This action is irreversible.
+      </p>
+    </div><!-- /scrollable content -->
+
+    <!-- Action buttons — sticky at bottom, ALWAYS visible -->
+    <div class="modal-actions" style="
+      position: sticky;
+      bottom: 0;
+      background: var(--card-bg, #0d1f3c);
+      padding: 14px 0 10px;
+      margin: 0;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      z-index: 10;
+      flex-shrink: 0;
+    ">
+      <button class="btn-cancel"  onclick="closeModal()">✗ Cancel</button>
+      <button class="btn-confirm" id="final_vote_btn" onclick="castVote()">
+        ✓ Confirm Vote
+      </button>
+    </div>
+
+  </div><!-- /modal -->
+</div><!-- /modal-overlay -->
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+let selectedCandidateId = null;
+let fpData        = '';
+let fpVerified    = false;
+let fpScannerVote = null;
+// Booth face capture
+let boothFaceEngine = null;
+let boothFaceDescriptor = null;
+let boothFaceVerified = false;
+// voter_id injected from Flask session (used to retrieve correct FP token)
+const VOTER_ID_SESSION = '{{ session.get("voter_id", "") }}';
+
+// ── Candidate selection ──────────────────────────────────────────
+function selectCandidate(id, name, party, symbol) {
+  document.querySelectorAll('.candidate-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('ccard-' + id).classList.add('selected');
+  selectedCandidateId = id;
+  const btn = document.getElementById('vote_btn');
+  btn.disabled = false;
+  btn.style.opacity = '1';
+  btn.style.cursor  = 'pointer';
+}
+
+// ── Open modal ───────────────────────────────────────────────────
+function openConfirmModal() {
+  if (selectedCandidateId === null) {
+    showToast('Please select a candidate first', 'error'); return;
+  }
+  const card   = document.getElementById('ccard-' + selectedCandidateId);
+  const symEl  = card.querySelector('.candidate-symbol, .candidate-symbol-img');
+  const symTxt = symEl ? (symEl.textContent.trim() || '🗳️') : '🗳️';
+
+  document.getElementById('modal_symbol').textContent = symTxt;
+  document.getElementById('modal_name').textContent   = card.querySelector('.candidate-name').textContent;
+  document.getElementById('modal_party').textContent  = card.querySelector('.candidate-party').textContent;
+
+  // Reset FP state every time modal opens
+  fpData = ''; fpVerified = false; fpScannerVote = null;
+  document.getElementById('fp_scanner_vote').innerHTML = `
+    <div style="text-align:center;padding:20px;color:var(--text-muted);">
+      <div style="font-size:30px;">👆</div>
+      <div style="font-size:13px;margin-top:6px;">Click below to scan</div>
+    </div>`;
+
+  const vBtn = document.getElementById('fp_vote_btn');
+  vBtn.style.display    = '';
+  vBtn.textContent      = '🔐 Scan Fingerprint to Confirm';
+  vBtn.disabled         = false;
+  vBtn.style.background = 'linear-gradient(135deg,#1a4fa0,#0e3070)';
+
+  // Reset confirm button
+  const cBtn = document.getElementById('final_vote_btn');
+  cBtn.disabled    = false;
+  cBtn.textContent = '✓ Confirm Vote';
+
+  // Scroll modal back to top when reopening
+  const modal = document.querySelector('#confirm_modal .modal');
+  if (modal) modal.scrollTop = 0;
+
+  document.getElementById('confirm_modal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('confirm_modal').classList.remove('show');
+}
+
+// ── Fingerprint scan ─────────────────────────────────────────────
+async function doVoteFP() {
+  const btn = document.getElementById('fp_vote_btn');
+  btn.disabled = true; btn.textContent = '🔍 Scanning…';
+  try {
+    fpScannerVote = new AdvancedFingerprintScanner('fp_scanner_vote');
+    // Retrieve the token for the currently logged-in voter
+    fpScannerVote.setVoterId(VOTER_ID_SESSION);
+    fpData     = await fpScannerVote.verify();
+    fpVerified = true;
+    btn.textContent      = '✅ Fingerprint Verified';
+    btn.style.background = 'linear-gradient(135deg,#138808,#0d6606)';
+    showToast('Fingerprint confirmed — press Confirm Vote ✅', 'success');
+  } catch(e) {
+    console.error('FP error:', e);
+    showToast('Scan failed — use Skip verification', 'error');
+    btn.disabled = false; btn.textContent = '🔐 Retry Scan';
+  }
+}
+
+function skipFp(e) {
+  e.preventDefault();
+  fpData     = 'FP_SKIPPED';
+  fpVerified = true;
+  document.getElementById('fp_vote_btn').style.display = 'none';
+  showToast('Proceeding without fingerprint', 'warning');
+}
+
+// ── Cast vote ────────────────────────────────────────────────────
+// ── Booth camera ─────────────────────────────────────────────────
+let _boothCam = null;
+
+async function startBoothCamera() {
+  const startBtn   = document.getElementById('booth_start_btn');
+  const captureBtn = document.getElementById('booth_capture_btn');
+  startBtn.disabled = true; startBtn.textContent = 'Starting…';
+  _boothCam = new AdvancedWebcam('booth_video','booth_canvas','booth_cam_status');
+  const ok = await _boothCam.start();
+  startBtn.textContent = ok ? '✅ Camera On' : '▶ Retry';
+  startBtn.disabled = false;
+  captureBtn.disabled = false; captureBtn.style.opacity = '1';
+  if (!ok) showToast('Camera N/A — simulation mode','warning');
+}
+
+async function captureBoothFace() {
+  if (!_boothCam) { showToast('Start camera first','error'); return; }
+  if (!boothFaceEngine) {
+    boothFaceEngine = new FaceVerificationEngine();
+    await boothFaceEngine.loadModels();
+  }
+  const video = document.getElementById('booth_video');
+  const desc = await boothFaceEngine.getDescriptor(video);
+  if (!desc) { showToast('No face detected — try again','error'); return; }
+  boothFaceDescriptor = Array.from(desc);
+  boothFaceVerified   = true;
+  _boothCam.stop();
+  document.getElementById('booth_face_done').style.display = 'block';
+  document.getElementById('booth_start_btn').style.display  = 'none';
+  document.getElementById('booth_capture_btn').style.display = 'none';
+  showToast('Booth face captured ✅','success');
+}
+
+function skipBoothFace() {
+  boothFaceDescriptor = null;
+  boothFaceVerified   = true;
+  document.getElementById('booth_face_box').style.display = 'none';
+  showToast('Proceeding without booth face scan','warning');
+}
+
+async function castVote() {
+  if (!fpVerified) {
+    showToast('Please scan fingerprint or click Skip verification', 'warning');
+    return;
+  }
+  if (!boothFaceVerified) {
+    showToast('Please capture your face at the booth or click Skip', 'warning');
+    return;
+  }
+  const btn = document.getElementById('final_vote_btn');
+  btn.disabled = true; btn.textContent = '⏳ Processing…';
+
+  try {
+    const res = await apiPost('/cast_vote', {
+      candidate_id:    selectedCandidateId,
+      fingerprint:     fpData || 'FP_SKIPPED',
+      face_descriptor: boothFaceDescriptor,
+    });
+    if (res.success) {
+      showToast('Vote cast successfully! ✅', 'success');
+      closeModal();
+      setTimeout(() => window.location.href = '/thank_you', 900);
+    } else {
+      showToast(res.message || 'Vote failed — please try again', 'error');
+      btn.disabled = false; btn.textContent = '✓ Confirm Vote';
+    }
+  } catch(e) {
+    console.error('castVote error:', e);
+    showToast('Network error: ' + e.message, 'error');
+    btn.disabled = false; btn.textContent = '✓ Confirm Vote';
+  }
+}
+
+// Close modal when clicking overlay backdrop
+document.getElementById('confirm_modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+</script>
+{% endblock %}

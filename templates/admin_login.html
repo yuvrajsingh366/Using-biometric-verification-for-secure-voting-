@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Admin_Login — EVM{% endblock %}
+{% block content %}
+<div class="page-wrap">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🛡️</span>
+      <h2 class="card-title">Admin Access</h2>
+      <p class="card-subtitle">Restricted to authorized personnel only</p>
+    </div>
+    <form method="POST">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" name="username" class="form-input" placeholder="admin" required autofocus/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div class="input-group">
+          <input type="password" name="password" class="form-input" placeholder="••••••••" required/>
+          <i class="fa fa-eye input-icon" data-toggle-pw></i>
+        </div>
+      </div>
+      <button type="submit" class="form-submit" style="background:linear-gradient(135deg,#1a4fa0,#0e3070);">
+        <i class="fa fa-shield-alt"></i> Access Admin Panel
+      </button>
+    </form>
+    <div class="form-link"><a href="/">← Back to Home</a></div>
+    <div style="margin-top:20px;padding:12px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:8px;font-size:12px;color:var(--text-muted);text-align:center;">
+      Default: <code style="color:var(--india-gold);">admin</code> / <code style="color:var(--india-gold);">admin123</code>
+    </div>
+  </div>
+</div>
+{% endblock %}

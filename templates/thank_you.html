@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Vote Cast — EVM{% endblock %}
+{% block content %}
+<div class="page-wrap" style="max-width:520px;">
+  <div class="card" style="text-align:center;padding:48px 32px;">
+
+    <div style="font-size:80px;margin-bottom:16px;animation:popIn .5s ease;">🗳️</div>
+
+    <h2 style="font-family:'Rajdhani',sans-serif;font-size:32px;font-weight:700;
+               color:var(--success);margin-bottom:8px;">
+      Vote Cast Successfully!
+    </h2>
+
+    <p style="color:var(--text-secondary);font-size:15px;margin-bottom:32px;line-height:1.6;">
+      Your vote has been securely recorded on the Electronic Voting Machine.<br>
+      Thank you for participating in the democratic process.
+    </p>
+
+    <div style="background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.3);
+                border-radius:12px;padding:20px;margin-bottom:32px;">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">
+        🔒 Your vote is encrypted and anonymous
+      </div>
+      <div style="font-size:13px;color:var(--text-muted);">
+        📋 A record has been added to the audit log
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <a href="/results" class="form-submit"
+         style="display:inline-block;text-decoration:none;max-width:180px;padding:12px 24px;">
+        📊 View Results
+      </a>
+      <a href="/" class="form-submit"
+         style="display:inline-block;text-decoration:none;max-width:180px;padding:12px 24px;
+                background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);">
+        🏠 Home
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<style>
+@keyframes popIn {
+  0%   { transform: scale(0.5); opacity: 0; }
+  70%  { transform: scale(1.1); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+</style>
+{% endblock %}

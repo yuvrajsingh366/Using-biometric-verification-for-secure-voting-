@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{% block title %}EVM — Electronic Voting Machine{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Noto+Sans:wght@300;400;600&family=Noto+Sans+Devanagari:wght@400;600&display=swap" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ static_ver }}"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/biometric.css') }}?v={{ static_ver }}"/>
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.js"></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+  <!-- Language selector -->
+  <div class="lang-bar">
+    <div class="lang-inner">
+      <span class="lang-label"><i class="fa fa-globe"></i></span>
+      <button class="lang-btn active" data-lang="en">English</button>
+      <button class="lang-btn" data-lang="hi">हिंदी</button>
+      <button class="lang-btn" data-lang="ne">नेपाली</button>
+    </div>
+  </div>
+
+  <!-- Top Header -->
+  <header class="site-header">
+    <div class="header-emblem">
+      <div class="emblem-circle">
+<img src="/static/images/logo2.png" alt="EVM Logo" class="emblem-icon">
+      </div>        
+    </div>
+    <div class="header-text">
+      <h1 class="header-title" data-i18n="site_title">Electronic Voting Machine</h1>
+      <p class="header-sub" data-i18n="site_sub">Election Commission of India — Digital Democracy Platform</p>
+    </div>
+    <div class="header-nav">
+      {% if session.get('voter_id') %}
+        <span class="nav-voter"><i class="fa fa-user-check"></i> {{ session.get('voter_name') }}</span>
+        <a href="{{ url_for('logout') }}" class="nav-btn danger"><i class="fa fa-sign-out-alt"></i> Logout</a>
+      {% elif session.get('is_admin') %}
+        <span class="nav-voter"><i class="fa fa-shield-alt"></i> Admin</span>
+        <a href="{{ url_for('admin_logout') }}" class="nav-btn danger"><i class="fa fa-sign-out-alt"></i> Logout</a>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="nav-btn"><i class="fa fa-sign-in-alt"></i> <span data-i18n="login">Login</span></a>
+        <a href="{{ url_for('register') }}" class="nav-btn outline"><i class="fa fa-user-plus"></i> <span data-i18n="register">Register</span></a>
+      {% endif %}
+    </div>
+  </header>
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-container">
+        {% for cat, msg in messages %}
+          <div class="flash flash-{{ cat }}"><i class="fa fa-info-circle"></i> {{ msg }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main>{% block content %}{% endblock %}</main>
+
+  <footer class="site-footer">
+    <p>🇮🇳 &nbsp;Electronic Voting Machine &nbsp;|&nbsp; Secured by Digital India Initiative &nbsp;|&nbsp; 2026 </p>
+    <p class="footer-sub">This system is protected under the Representation of People Act.</p>
+  </footer>
+
+  <!--
+    SCRIPT LOAD ORDER — do not change:
+      1. main.js      — showToast(), apiPost(), WebcamManager
+      2. biometric.js — AdvancedWebcam, AdvancedFingerprintScanner (needs main.js first)
+      3. i18n.js      — translations (independent)
+      4. block scripts — page-specific code (needs all three above)
+
+    Never load main.js or biometric.js again inside any page's block scripts.
+    Doing so causes "redeclaration" errors in the browser console.
+  -->
+  <script src="{{ url_for('static', filename='js/main.js') }}?v={{ static_ver }}"></script>
+  <script src="{{ url_for('static', filename='js/biometric.js') }}?v={{ static_ver }}"></script>
+  <script src="{{ url_for('static', filename='js/i18n.js') }}?v={{ static_ver }}"></script>
+
+  {% block scripts %}{% endblock %}
+
+</body>
+</html>

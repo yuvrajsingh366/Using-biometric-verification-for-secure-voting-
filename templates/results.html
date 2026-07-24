@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Results — EVM{% endblock %}
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="results-wrap">
+  <div class="results-header">
+    <div class="hero-badge">📊 LIVE RESULTS</div>
+    <h2 class="results-title">{{ settings.election_name }}</h2>
+    <p class="results-sub">Total Votes Cast: <strong>{{ total }}</strong> &nbsp;|&nbsp; {{ settings.election_date }}</p>
+    <button onclick="refreshResults()" style="margin-top:12px;" class="btn-secondary"><i class="fa fa-sync"></i> Refresh</button>
+  </div>
+
+  {% if candidates %}
+    {% set winner = candidates[0] %}
+    {% if total > 0 %}
+    <div style="background:rgba(201,168,76,0.1);border:1px solid var(--india-gold);border-radius:12px;padding:20px;text-align:center;margin-bottom:32px;">
+      <div style="font-size:36px;margin-bottom:8px;">🏆</div>
+      <span class="winner-badge">🥇 Leading Candidate</span>
+      <h3 style="font-family:'Rajdhani',sans-serif;font-size:28px;font-weight:700;margin:12px 0 4px;">{{ winner.party_symbol }} {{ winner.name }}</h3>
+      <p style="color:var(--text-secondary);">{{ winner.party }}</p>
+      <p style="font-family:'Rajdhani',sans-serif;font-size:36px;font-weight:700;color:var(--india-gold);">
+        {{ winner.vote_count }} votes
+        {% if total > 0 %}<span style="font-size:18px;color:var(--text-muted);">({{ "%.1f"|format(winner.vote_count/total*100) }}%)</span>{% endif %}
+      </p>
+    </div>
+    {% endif %}
+
+    <div id="results_list">
+    {% for c in candidates %}
+    {% set pct = (c.vote_count / total * 100) if total > 0 else 0 %}
+    <div class="result-bar-item">
+      <div class="result-bar-header">
+        <div class="result-candidate-info">
+          <span class="result-symbol">
+            {% if c.symbol_image %}
+              <img src="{{ url_for('static', filename='uploads/symbols/' + c.symbol_image) }}"
+                   style="width:48px;height:48px;object-fit:contain;border-radius:6px;"/>
+            {% else %}
+              {{ c.party_symbol }}
+            {% endif %}
+          </span>
+          <div>
+            <div class="result-name">{{ c.name }}
+              {% if loop.first and total > 0 %}<span class="winner-badge" style="margin-left:8px;font-size:10px;">Leading</span>{% endif %}
+            </div>
+            <div class="result-party">{{ c.party }}</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div class="result-votes">{{ c.vote_count }}</div>
+          <div class="result-pct">{{ "%.1f"|format(pct) }}%</div>
+        </div>
+      </div>
+      <div class="result-bar-track">
+        <div class="result-bar-fill" style="width:0%;background:{{ c.party_color }};" data-width="{{ pct }}"></div>
+      </div>
+    </div>
+    {% endfor %}
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-container" style="margin-top:32px;">
+      <h3 style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;margin-bottom:20px;">📊 Vote Distribution</h3>
+      <div class="donut-wrap">
+        <canvas id="donut_chart" width="260" height="260" style="max-width:260px;"></canvas>
+        <div class="donut-legend" id="chart_legend"></div>
+      </div>
+    </div>
+
+  {% else %}
+    <div style="text-align:center;padding:80px 20px;color:var(--text-muted);">
+      <div style="font-size:48px;margin-bottom:16px;">📭</div>
+      <p>No votes have been cast yet. Check back after the election begins.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Animate bars on load
+document.querySelectorAll('.result-bar-fill').forEach(el => {
+  setTimeout(() => { el.style.width = el.dataset.width + '%'; }, 300);
+});
+
+// Donut chart
+const candidates = {{ candidates | tojson }};
+const total = {{ total }};
+if (candidates.length && total > 0) {
+  const labels  = candidates.map(c => c.name);
+  const data    = candidates.map(c => c.vote_count);
+  const colors  = candidates.map(c => c.party_color);
+
+  const ctx = document.getElementById('donut_chart').getContext('2d');
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: '#040C1E', borderWidth: 3 }] },
+    options: {
+      cutout: '65%',
+      plugins: { legend: { display: false } },
+      animation: { animateRotate: true, duration: 1200 }
+    }
+  });
+
+  const legend = document.getElementById('chart_legend');
+  candidates.forEach(c => {
+    const pct = total > 0 ? (c.vote_count/total*100).toFixed(1) : '0.0';
+    legend.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${c.party_color}"></div><div><strong>${c.name}</strong><br><span style="color:var(--text-muted);font-size:11px;">${c.vote_count} votes (${pct}%)</span></div></div>`;
+  });
+}
+
+// Auto-refresh
+function refreshResults() { window.location.reload(); }
+setInterval(refreshResults, 30000);  // refresh every 30s
+</script>
+{% endblock %}

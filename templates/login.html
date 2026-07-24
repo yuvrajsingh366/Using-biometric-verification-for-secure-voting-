@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block title %}Login — EVM{% endblock %}
+{% block content %}
+<div class="page-wrap">
+  <div class="card">
+    <div class="card-header">
+      <img src="/static/images/vote.png" alt="vote logo" class="emblem-icon">
+      
+      <h2 class="card-title">Voter Login</h2>
+      <p class="card-subtitle">Authenticate with password + live face verification</p>
+    </div>
+    <div class="form-group">
+      <label>Voter ID</label>
+      <input type="text" id="voter_id" class="form-input" placeholder="e.g. MH1234567890" style="text-transform:uppercase;"/>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <div class="input-group">
+        <input type="password" id="password" class="form-input" placeholder="Enter your password"/>
+        <i class="fa fa-eye input-icon" data-toggle-pw></i>
+      </div>
+    </div>
+
+    <!-- Face Verification Section -->
+    <div style="margin-bottom:20px;">
+      <label style="margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+        📷 <strong>Face Verification</strong>
+        <span id="face_status_badge" style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(255,183,0,0.15);color:#FFB700;border:1px solid rgba(255,183,0,0.3);">Required</span>
+      </label>
+
+      <!-- Model loading -->
+      <div id="login_model_loading" style="text-align:center;padding:16px;color:var(--text-muted);font-size:13px;">
+        <div class="spinner" style="width:20px;height:20px;border-width:2px;display:inline-block;margin-bottom:6px;"></div>
+        <div>Loading face recognition engine…</div>
+      </div>
+
+      <div id="login_face_ui">
+        <div class="webcam-box-advanced">
+          <video id="login_video" autoplay muted playsinline style="width:100%;display:block;"></video>
+          <canvas id="login_canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
+          <div class="face-oval"></div>
+        </div>
+        <div id="login_cam_status" class="webcam-status status-warning">Click "Start Camera" to begin face verification</div>
+        <div id="login_multi_warn" class="multi-face-warning">⚠️ Multiple faces detected! Move to a private location.</div>
+
+        <!-- Liveness for login -->
+        <div id="login_liveness_panel" class="liveness-panel" style="display:none;">
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-align:center;">🔒 ANTI-SPOOFING CHECK — Complete to proceed</div>
+          <div id="login_liveness_status" class="liveness-status">Waiting…</div>
+        </div>
+
+        <!-- Match result -->
+        <div id="face_match_result" style="display:none;text-align:center;margin-top:8px;"></div>
+
+        <div class="webcam-controls" style="margin-top:8px;">
+          <button class="cam-btn" onclick="startLoginCamera()" id="login_start_btn">📷 Start Camera</button>
+          <button class="cam-btn primary" id="login_verify_btn" onclick="verifyLoginFace()" disabled>🔍 Verify Face</button>
+          <button class="cam-btn" id="login_bypass_btn" onclick="skipCamera()">⏭ Skip</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="face_captured_notice" style="display:none;text-align:center;padding:8px;background:rgba(46,204,113,0.1);border:1px solid var(--success);border-radius:6px;color:var(--success);font-size:13px;margin-bottom:16px;">
+      ✅ Face verified
+    </div>
+
+    <!-- Fingerprint Verification -->
+    <div style="margin-bottom:20px;">
+      <label style="margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+        🖐 <strong>Fingerprint Verification</strong>
+        <span id="fp_login_badge" style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(255,183,0,0.15);color:#FFB700;border:1px solid rgba(255,183,0,0.3);">Required</span>
+      </label>
+      <div id="fp_login_container"></div>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="cam-btn primary" id="fp_login_scan_btn" onclick="doLoginFP()">🖐 Scan Fingerprint</button>
+        <button class="cam-btn" onclick="skipLoginFP()">&#x23ED; Skip</button>
+      </div>
+      <div id="fp_login_done" style="display:none;color:#00e676;font-size:13px;margin-top:6px;">&#x2705; Fingerprint verified</div>
+    </div>
+
+    <button class="form-submit" id="login_btn" onclick="doLogin()"><i class="fa fa-sign-in-alt"></i> Login & Vote</button>
+    <div class="form-link" style="margin-top:16px;">Not registered? <a href="/register">Register here</a></div>
+    <div class="form-link"><a href="/admin/login" style="color:var(--text-muted);font-size:12px;">Admin Panel →</a></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let loginFaceImg = '';
+let loginLiveDescriptor = '';  // 128-D descriptor captured at login
+let loginLivenessPassed = false;
+let loginCamAdvanced = null;
+let loginLivenessDetector = null;
+let loginFaceEngine = null;
+let faceVerified = false;  // True = passed real check; null = skipped
+let loginFpToken = '';     // fingerprint token for this login session
+let loginFpVerified = false;
+
+// Load face models on page load
+(async()=>{
+  loginFaceEngine = new FaceVerificationEngine();
+  const loaded = await loginFaceEngine.loadModels();
+  document.getElementById('login_model_loading').style.display = 'none';
+  if(!loaded) showToast('Face recognition unavailable — photo fallback','warning');
+})();
+
+async function startLoginCamera(){
+  const btn = document.getElementById('login_start_btn');
+  btn.disabled = true; btn.textContent = 'Starting…';
+  loginCamAdvanced = new AdvancedWebcam('login_video','login_canvas','login_cam_status');
+  const ok = await loginCamAdvanced.start();
+  btn.textContent = ok ? '🔄 Restart' : '❌ N/A';
+  btn.disabled = false;
+  if(ok){
+    document.getElementById('login_liveness_panel').style.display = 'block';
+    startLoginLiveness();
+  } else {
+    // Fallback
+    loginLivenessPassed = true;
+    document.getElementById('login_verify_btn').disabled = false;
+    showToast('Camera N/A — simulation mode','warning');
+  }
+}
+
+function startLoginLiveness(){
+  loginLivenessDetector = new LivenessDetector(
+    document.getElementById('login_video'),
+    document.getElementById('login_liveness_status'),
+    (passed)=>{
+      loginLivenessPassed = passed;
+      if(passed){
+        document.getElementById('login_verify_btn').disabled = false;
+        showToast('Liveness passed — click Verify Face to match','success');
+      }
+    }
+  );
+  loginLivenessDetector.start();
+}
+
+async function verifyLoginFace(){
+  if(!loginLivenessPassed){showToast('Complete liveness check first','warning');return;}
+  const video = document.getElementById('login_video');
+
+  // Check for multiple faces
+  if(loginFaceEngine && loginFaceEngine.modelsLoaded){
+    const opts = new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:0.5});
+    const faces = await faceapi.detectAllFaces(video, opts);
+    if(faces.length === 0){ showToast('No face detected — look at camera','error'); return; }
+    if(faces.length > 1){
+      showToast('Multiple faces! Login in a private place','error');
+      document.getElementById('login_multi_warn').classList.add('visible');
+      return;
+    }
+    document.getElementById('login_multi_warn').classList.remove('visible');
+  }
+
+  loginFaceImg = loginCamAdvanced.capture();
+  // Capture 128-D descriptor for real server-side matching
+  if(loginFaceEngine && loginFaceEngine.modelsLoaded){
+    const liveDesc = await loginFaceEngine.getDescriptor(document.getElementById('login_video'));
+    loginLiveDescriptor = liveDesc ? JSON.stringify(Array.from(liveDesc)) : '';
+  }
+  faceVerified = true;
+  loginLivenessDetector && loginLivenessDetector.stop();
+  document.getElementById('login_liveness_panel').style.display = 'none';
+
+  // Show badge
+  const badge = document.getElementById('face_status_badge');
+  badge.textContent = '✅ Verified';
+  badge.style.background = 'rgba(0,230,118,0.15)';
+  badge.style.color = '#00E676';
+  badge.style.border = '1px solid rgba(0,230,118,0.3)';
+  document.getElementById('face_captured_notice').style.display = 'block';
+  showToast('Face captured — ready to login','success');
+}
+
+function skipCamera(){
+  loginFaceImg = '';
+  faceVerified = null;  // skipped
+  loginLivenessDetector && loginLivenessDetector.stop();
+  const badge = document.getElementById('face_status_badge');
+  badge.textContent = '⚠️ Skipped';
+  badge.style.background = 'rgba(255,183,0,0.12)';
+  badge.style.color = '#FFB700';
+  showToast('Proceeding without face verification','info');
+}
+
+// ── Fingerprint scan at login ─────────────────────────────────────
+let _fpLoginScanner = null;
+
+async function doLoginFP() {
+  const btn = document.getElementById('fp_login_scan_btn');
+  btn.disabled = true; btn.textContent = '🔍 Scanning…';
+  try {
+    _fpLoginScanner = new AdvancedFingerprintScanner('fp_login_container');
+    // Bind voter_id so we retrieve the token saved at registration
+    _fpLoginScanner.setVoterId(document.getElementById('voter_id').value.trim());
+    loginFpToken = await _fpLoginScanner.verify();
+    loginFpVerified = true;
+    document.getElementById('fp_login_done').style.display = 'block';
+    const badge = document.getElementById('fp_login_badge');
+    badge.textContent = '✅ Scanned'; badge.style.background = 'rgba(0,230,118,0.15)';
+    badge.style.color = '#00E676'; badge.style.border = '1px solid rgba(0,230,118,0.3)';
+    btn.textContent = '✅ Fingerprint Scanned';
+    showToast('Fingerprint captured — ready to login','success');
+  } catch(e) {
+    showToast('Fingerprint scan failed — retry or skip','error');
+    btn.disabled = false; btn.textContent = '🖐 Scan Fingerprint';
+  }
+}
+
+function skipLoginFP() {
+  loginFpToken = 'FP_SKIPPED';
+  loginFpVerified = true;
+  const badge = document.getElementById('fp_login_badge');
+  badge.textContent = '⚠️ Skipped'; badge.style.background = 'rgba(255,183,0,0.12)';
+  badge.style.color = '#FFB700';
+  document.getElementById('fp_login_scan_btn').style.display = 'none';
+  showToast('Proceeding without fingerprint','warning');
+}
+
+async function doLogin(){
+  const voter_id = document.getElementById('voter_id').value.trim().toUpperCase();
+  const password = document.getElementById('password').value;
+  if(!voter_id||!password){showToast('Please enter Voter ID and Password','error');return;}
+  if(faceVerified === false && loginFaceImg === ''){
+    showToast('Please verify your face or click Skip','warning');
+    return;
+  }
+  if(!loginFpVerified){
+    showToast('Please scan your fingerprint or click Skip','warning');
+    return;
+  }
+  const btn = document.getElementById('login_btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;display:inline-block;"></div> Verifying…';
+  // Parse descriptor — server expects a JS array of 128 numbers
+  let faceDescArr = null;
+  try { faceDescArr = loginLiveDescriptor ? JSON.parse(loginLiveDescriptor) : null; } catch(e){}
+  const res = await apiPost('/login',{
+    voter_id, password,
+    face_image: loginFaceImg,
+    face_descriptor: faceDescArr,
+    fingerprint: loginFpToken
+  });
+  if(res.success){
+    showToast('Login successful ✅','success');
+    loginCamAdvanced && loginCamAdvanced.stop();
+    setTimeout(()=>window.location.href=res.redirect||'/vote',800);
+  } else {
+    showToast(res.message,'error');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa fa-sign-in-alt"></i> Login & Vote';
+  }
+}
+
+document.addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+</script>
+{% endblock %}

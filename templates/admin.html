@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel — EVM{% endblock %}
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="admin-wrap">
+  <div class="admin-header">
+    <div>
+      <h2 class="admin-title">🛡️ Admin Control Panel</h2>
+      <p style="color:var(--text-secondary);font-size:13px;">{{ settings.election_name }} &nbsp;|&nbsp; Logged in as <strong>{{ session.get('admin_user','admin') }}</strong></p>
+    </div>
+    <div class="admin-badges">
+      <div class="admin-badge"><div class="num">{{ total_voters }}</div><div class="lbl">Voters</div></div>
+      <div class="admin-badge"><div class="num">{{ total_votes }}</div><div class="lbl">Votes Cast</div></div>
+      <div class="admin-badge"><div class="num">{{ candidates|length }}</div><div class="lbl">Candidates</div></div>
+      <div class="admin-badge">
+        <div class="num" style="color:{% if settings.election_active=='1' %}var(--success){% else %}var(--danger){% endif %};">
+          {% if settings.election_active=='1' %}LIVE{% else %}CLOSED{% endif %}
+        </div>
+        <div class="lbl">Election Status</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="admin-tabs">
+    <button class="admin-tab active" onclick="switchTab('candidates')">🏛️ Candidates</button>
+    <button class="admin-tab" onclick="switchTab('voters')">👥 Voters</button>
+    <button class="admin-tab" onclick="switchTab('results')">📊 Results</button>
+    <button class="admin-tab" onclick="switchTab('audit')">📋 Audit Log</button>
+    <button class="admin-tab" onclick="switchTab('settings')">⚙️ Settings</button>
+  </div>
+
+  <!-- ── Candidates Tab ── -->
+  <div class="tab-content active" id="tab-candidates">
+    <div class="admin-form">
+      <h3>➕ Add Candidate</h3>
+      <form method="POST" action="/admin/add_candidate" enctype="multipart/form-data">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Candidate Name *</label>
+            <input name="name" class="form-input" placeholder="Full name" required/>
+          </div>
+          <div class="form-group">
+            <label>Party Name *</label>
+            <input name="party" class="form-input" placeholder="Party name" required/>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Party Symbol (Emoji) — used if no image uploaded</label>
+            <input name="symbol" class="form-input" placeholder="🌟" value="⭐" id="emoji_input"/>
+          </div>
+          <div class="form-group">
+            <label>Party Color</label>
+            <input type="color" name="color" class="form-input" value="#1a4fa0"/>
+          </div>
+        </div>
+
+        <!-- Image upload -->
+        <div class="form-group">
+          <label>Party Symbol Image (PNG/JPG — optional, overrides emoji)</label>
+          <div class="symbol-upload-box" id="symbol_upload_box" onclick="document.getElementById('symbol_img_input').click()">
+            <div id="symbol_preview_wrap">
+              <span style="font-size:40px;" id="symbol_upload_icon">🖼️</span>
+              <p style="font-size:13px;color:var(--text-secondary);margin-top:8px;">Click to upload party symbol image</p>
+              <p style="font-size:11px;color:var(--text-muted);">PNG, JPG up to 2MB — will be shown on voting page</p>
+            </div>
+            <img id="symbol_img_preview" src="" alt=""
+                 style="display:none;width:100px;height:100px;object-fit:contain;border-radius:8px;"/>
+          </div>
+          <input type="file" id="symbol_img_input" name="symbol_image"
+                 accept="image/png,image/jpeg,image/gif,image/webp"
+                 style="display:none;" onchange="previewSymbol(this)"/>
+          <button type="button" id="clear_symbol_btn" onclick="clearSymbol()"
+                  style="display:none;margin-top:6px;padding:4px 12px;font-size:12px;
+                         background:rgba(231,76,60,0.2);color:var(--danger);
+                         border:1px solid var(--danger);border-radius:4px;cursor:pointer;">
+            ✕ Remove Image
+          </button>
+        </div>
+
+        <div class="form-group">
+          <label>Manifesto / Tagline</label>
+          <input name="manifesto" class="form-input" placeholder="Brief manifesto or tagline"/>
+        </div>
+        <button type="submit" class="form-submit" style="max-width:220px;">➕ Add Candidate</button>
+      </form>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Symbol</th><th>Name</th><th>Party</th><th>Color</th><th>Votes</th><th>Action</th></tr></thead>
+        <tbody>
+        {% for c in candidates %}
+        <tr>
+          <td>{{ c.id }}</td>
+          <td style="text-align:center;">
+            {% if c.symbol_image %}
+              <img src="{{ url_for('static', filename='uploads/symbols/' + c.symbol_image) }}"
+                   style="width:48px;height:48px;object-fit:contain;border-radius:6px;
+                          background:rgba(255,255,255,0.05);padding:4px;"/>
+            {% else %}
+              <span style="font-size:32px;">{{ c.party_symbol }}</span>
+            {% endif %}
+          </td>
+          <td><strong>{{ c.name }}</strong></td>
+          <td>{{ c.party }}</td>
+          <td><span style="display:inline-block;width:24px;height:24px;border-radius:4px;
+                           background:{{ c.party_color }};border:1px solid rgba(255,255,255,0.2);"></span></td>
+          <td><strong style="color:var(--india-gold);">{{ c.vote_count }}</strong></td>
+          <td>
+            <form method="POST" action="/admin/delete_candidate/{{ c.id }}" style="display:inline;">
+              <button type="submit" class="btn-sm btn-danger"
+                      onclick="return confirm('Remove {{ c.name }}?')">🗑 Remove</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:32px;">No candidates added yet</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Voters Tab ── -->
+  <div class="tab-content" id="tab-voters">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Voter ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Registered</th><th>Action</th></tr></thead>
+        <tbody>
+        {% for v in voters %}
+        <tr>
+          <td>{{ v.id }}</td>
+          <td><code style="font-size:12px;">{{ v.voter_id }}</code></td>
+          <td>{{ v.name }}</td>
+          <td style="font-size:12px;">{{ v.email }}</td>
+          <td style="font-size:12px;">{{ v.phone }}</td>
+          <td>
+            {% if v.has_voted %}<span class="badge-voted">Voted</span>
+            {% else %}<span class="badge-pending">Pending</span>{% endif %}
+          </td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ v.registered_at[:16] }}</td>
+          <td>
+            <form method="POST" action="/admin/delete_voter/{{ v.id }}" style="display:inline;">
+              <button type="submit" class="btn-sm btn-danger" onclick="return confirm('Remove voter {{ v.name }}?')">🗑</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:32px;">No voters registered</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Results Tab ── -->
+  <div class="tab-content" id="tab-results">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;flex-wrap:wrap;">
+      <div class="admin-form">
+        <h3>📊 Vote Tally</h3>
+        {% for c in candidates %}
+        {% set pct = (c.vote_count / total_votes * 100) if total_votes > 0 else 0 %}
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+            <span>{{ c.party_symbol }} {{ c.name }}</span>
+            <span style="font-weight:700;color:var(--india-gold);">{{ c.vote_count }} ({{ "%.1f"|format(pct) }}%)</span>
+          </div>
+          <div class="result-bar-track">
+            <div class="result-bar-fill" style="width:{{ pct }}%;background:{{ c.party_color }};transition:none;"></div>
+          </div>
+        </div>
+        {% endfor %}
+        <p style="font-size:13px;color:var(--text-muted);margin-top:16px;">Total votes: <strong>{{ total_votes }}</strong></p>
+      </div>
+      <div class="admin-form">
+        <h3>🍩 Distribution Chart</h3>
+        <canvas id="admin_chart" style="max-height:250px;"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Audit Log Tab ── -->
+  <div class="tab-content" id="tab-audit">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Action</th><th>Voter ID</th><th>Details</th><th>IP</th></tr></thead>
+        <tbody>
+        {% for log in logs %}
+        <tr class="log-entry">
+          <td>{{ log.timestamp[:19] }}</td>
+          <td>
+            <span style="
+              {% if 'VOTE' in log.action %}color:var(--success);
+              {% elif 'FAIL' in log.action or 'BLOCK' in log.action %}color:var(--danger);
+              {% elif 'ADMIN' in log.action %}color:var(--india-gold);
+              {% else %}color:var(--text-secondary);{% endif %}
+              font-weight:700;font-size:12px;">{{ log.action }}</span>
+          </td>
+          <td><code style="font-size:11px;">{{ log.voter_id or '—' }}</code></td>
+          <td style="font-size:12px;color:var(--text-secondary);">{{ log.details or '—' }}</td>
+          <td style="font-size:11px;color:var(--text-muted);">{{ log.ip_address }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">No audit logs</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Settings Tab ── -->
+  <div class="tab-content" id="tab-settings">
+    <div class="admin-form">
+      <h3>⚙️ Election Settings</h3>
+      <form method="POST" action="/admin/update_settings">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Election Name</label>
+            <input name="election_name" class="form-input" value="{{ settings.election_name }}"/>
+          </div>
+          <div class="form-group">
+            <label>Election Date</label>
+            <input type="date" name="election_date" class="form-input" value="{{ settings.election_date }}"/>
+          </div>
+        </div>
+        <button type="submit" class="form-submit" style="max-width:180px;">Save Settings</button>
+      </form>
+    </div>
+
+    <div class="admin-form">
+      <h3>🔄 Election Control</h3>
+      <form method="POST" action="/admin/toggle_election" style="display:inline;">
+        {% if settings.election_active == '1' %}
+        <button type="submit" class="btn-sm btn-warning" style="padding:10px 20px;font-size:14px;">⏸ Pause Election</button>
+        {% else %}
+        <button type="submit" class="btn-sm btn-success" style="padding:10px 20px;font-size:14px;">▶ Resume Election</button>
+        {% endif %}
+      </form>
+    </div>
+
+    <div class="admin-form danger-zone">
+      <h4>⚠️ Danger Zone</h4>
+      <p>This will clear ALL votes and reset the election. Voter accounts will be preserved. This cannot be undone.</p>
+      <form method="POST" action="/admin/reset_election">
+        <button type="submit" class="btn-sm btn-danger" style="padding:10px 24px;font-size:14px;"
+                onclick="return confirm('⚠️ This will ERASE all votes! Type CONFIRM to proceed.') && prompt('Type CONFIRM:') === 'CONFIRM'">
+          🗑 Reset All Votes
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// Admin results donut chart
+const adminCandidates = {{ candidates | tojson }};
+const totalVotes = {{ total_votes }};
+if (adminCandidates.length && totalVotes > 0) {
+  const ctx = document.getElementById('admin_chart').getContext('2d');
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: adminCandidates.map(c => c.name),
+      datasets: [{
+        data: adminCandidates.map(c => c.vote_count),
+        backgroundColor: adminCandidates.map(c => c.party_color),
+        borderColor: '#081428', borderWidth: 2
+      }]
+    },
+    options: {
+      cutout: '55%',
+      plugins: {
+        legend: { labels: { color: '#8BA8CC', font: { size: 12 } } }
+      }
+    }
+  });
+}
+
+// ── Symbol image preview ───────────────────
+function previewSymbol(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) {
+    alert('Image too large. Please use an image under 2MB.'); 
+    input.value = ''; return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const preview = document.getElementById('symbol_img_preview');
+    const wrap    = document.getElementById('symbol_preview_wrap');
+    const box     = document.getElementById('symbol_upload_box');
+    const clearBtn= document.getElementById('clear_symbol_btn');
+    preview.src           = e.target.result;
+    preview.style.display = 'block';
+    wrap.style.display    = 'none';
+    box.style.borderColor = 'var(--success)';
+    box.style.background  = 'rgba(46,204,113,0.05)';
+    clearBtn.style.display= 'inline-block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearSymbol() {
+  document.getElementById('symbol_img_input').value  = '';
+  document.getElementById('symbol_img_preview').style.display = 'none';
+  document.getElementById('symbol_preview_wrap').style.display = 'block';
+  document.getElementById('symbol_upload_box').style.borderColor = '';
+  document.getElementById('symbol_upload_box').style.background  = '';
+  document.getElementById('clear_symbol_btn').style.display = 'none';
+}
+</script>
+
+<style>
+.symbol-upload-box {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .3s;
+  background: rgba(255,255,255,0.02);
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+
+  
+}
+.symbol-upload-box:hover {
+  border-color: var(--india-blue);
+  background: rgba(26,79,160,0.08);
+}
+</style>
+{% endblock %}

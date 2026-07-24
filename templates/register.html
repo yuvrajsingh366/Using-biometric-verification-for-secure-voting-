@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+{% block title %}Register — EVM{% endblock %}
+
+{% block content %}
+
+<div class="page-wrap" style="max-width:680px;">
+<div class="card">
+
+  <div class="card-header">
+    <span class="card-icon">📝</span>
+    <h2 class="card-title">Voter Registration</h2>
+    <p class="card-subtitle">Register securely to vote</p>
+  </div>
+
+  <!-- STEP INDICATOR -->
+  <div class="steps-bar">
+    <div class="step active" id="step-ind-1"><span class="step-num">1</span> Personal</div>
+    <div class="step"        id="step-ind-2"><span class="step-num">2</span> OTP</div>
+    <div class="step"        id="step-ind-3"><span class="step-num">3</span> Biometric</div>
+    <div class="step"        id="step-ind-4"><span class="step-num">4</span> Done</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       STEP 1 — Personal Details
+  ══════════════════════════════════════════ -->
+  <div id="step-1">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Voter ID</label>
+        <input type="text" id="voter_id" class="form-input" placeholder="e.g. ABC1234567">
+      </div>
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="name" class="form-input" placeholder="Your full name">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="email" class="form-input" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="tel" id="phone" class="form-input" placeholder="+91 …">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="password" class="form-input" placeholder="Min 8 characters">
+    </div>
+    <button class="form-submit" onclick="goStep2()">Continue →</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       STEP 2 — OTP Verification
+  ══════════════════════════════════════════ -->
+  <div id="step-2" style="display:none">
+    <h3>Email OTP Verification</h3>
+
+    <div class="form-group">
+      <input type="email" id="otp_email_display" class="form-input" readonly>
+      <button class="otp-btn" id="send_otp_btn" onclick="sendOtp()">Send OTP</button>
+    </div>
+
+    <div class="form-group" style="margin-top:12px;">
+      <input type="text" id="otp_input" maxlength="6"
+             placeholder="Enter 6-digit OTP" class="form-input"
+             style="letter-spacing:6px;font-size:20px;text-align:center;">
+    </div>
+
+    <button class="form-submit" onclick="verifyOtp()">Verify OTP ✓</button>
+
+    <div id="otp_verified_msg" style="display:none;color:#00e676;margin-top:8px;">
+      ✅ OTP Verified — proceeding to biometrics…
+    </div>
+
+    <button style="margin-top:12px;" onclick="showStep(1)">← Back</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       STEP 3 — Biometric Registration
+  ══════════════════════════════════════════ -->
+  <div id="step-3" style="display:none">
+    <h3>Biometric Registration</h3>
+    <p style="color:#aaa;font-size:13px;margin-bottom:16px;">
+      Your photo and fingerprint are stored securely and used to
+      verify your identity when you vote.
+    </p>
+
+    <!-- ── Face / Voter Photo ──────────────── -->
+    <div class="bio-section">
+      <h4>📷 Voter Photo</h4>
+      <p style="color:#aaa;font-size:12px;margin:0 0 10px;">
+        This photo will be shown to the election officer at the polling booth.
+      </p>
+
+      <div style="position:relative;display:inline-block;">
+        <video id="reg_video" autoplay muted
+          style="width:320px;height:240px;border-radius:8px;background:#111;display:block;">
+        </video>
+        <canvas id="reg_canvas"
+          style="position:absolute;top:0;left:0;width:320px;height:240px;pointer-events:none;">
+        </canvas>
+      </div>
+
+      <div id="reg_cam_status" style="margin:6px 0;font-size:13px;color:#888;min-height:18px;">
+        Camera not started
+      </div>
+
+      <div id="face_preview_wrap" style="display:none;margin-top:10px;">
+        <p style="color:#aaa;font-size:12px;margin:0 0 4px;">Captured voter photo:</p>
+        <img id="face_preview"
+             style="width:140px;height:105px;object-fit:cover;border-radius:6px;
+                    border:2px solid #00e676;display:block;" alt="Voter photo">
+        <div style="color:#00e676;font-size:12px;margin-top:4px;">
+          ✅ Photo saved — used for booth verification
+        </div>
+      </div>
+
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <button id="start_cam_btn"    onclick="startRegCamera()">▶ Start Camera</button>
+        <button id="capture_face_btn" onclick="captureRegFace()" disabled style="opacity:.5;">
+          📸 Capture Photo
+        </button>
+        <button id="recapture_btn"    onclick="recaptureRegFace()" style="display:none;">
+          🔄 Retake Photo
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Fingerprint ──────────────────────── -->
+    <div class="bio-section" style="margin-top:28px;">
+      <h4>🖐 Fingerprint Registration</h4>
+      <p style="color:#aaa;font-size:12px;margin:0 0 10px;">
+        Simulated fingerprint scan — your template is matched when you vote.
+      </p>
+
+      <div id="fp_container"></div>
+
+      <div style="margin-top:10px;">
+        <button id="fp_scan_btn" onclick="startFPScan()">🖐 Start Fingerprint Scan</button>
+      </div>
+
+      <div id="fp_done_msg" style="display:none;color:#00e676;font-size:13px;margin-top:6px;">
+        ✅ Fingerprint template stored
+      </div>
+    </div>
+
+    <!-- ── Submit ─────────────────────────── -->
+    <div style="margin-top:28px;">
+      <button class="form-submit" onclick="submitRegistration()">
+        Complete Registration ✓
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       STEP 4 — Done
+  ══════════════════════════════════════════ -->
+  <div id="step-4" style="display:none;text-align:center;padding:24px 0;">
+    <div style="font-size:64px;margin-bottom:12px;">🎉</div>
+    <h2>Registration Complete!</h2>
+    <p style="color:#aaa;">Your voter photo and fingerprint have been registered.</p>
+    <a class="form-submit" href="/login"
+       style="display:inline-block;margin-top:16px;text-decoration:none;">
+      Proceed to Login →
+    </a>
+  </div>
+
+</div><!-- /card -->
+</div><!-- /page-wrap -->
+
+{% endblock %}
+
+
+{% block scripts %}
+{#
+  base.html already loads biometric.js, i18n.js, main.js before this block.
+  No extra <script> tags needed here — adding them again causes redeclaration errors.
+#}
+<script>
+/* ================================================================
+   register.html — page controller
+   Requires: showToast, apiPost       from main.js
+             AdvancedWebcam           from biometric.js
+             AdvancedFingerprintScanner from biometric.js
+================================================================ */
+
+// ── Step navigation ──────────────────────────────────────────────
+function showStep(n) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById('step-' + i).style.display = (i === n ? 'block' : 'none');
+    const ind = document.getElementById('step-ind-' + i);
+    if (ind) ind.classList.toggle('active', i === n);
+  });
+}
+
+function goStep2() {
+  const voter_id = document.getElementById('voter_id').value.trim();
+  const name     = document.getElementById('name').value.trim();
+  const email    = document.getElementById('email').value.trim();
+  const phone    = document.getElementById('phone').value.trim();
+  const password = document.getElementById('password').value;
+
+  if (!voter_id) { showToast('Voter ID is required', 'error'); return; }
+  if (!name)     { showToast('Full name is required', 'error'); return; }
+  if (!email)    { showToast('Email is required', 'error'); return; }
+  if (!phone)    { showToast('Phone number is required', 'error'); return; }
+  if (phone.replace(/\D/g,'').length < 10) {
+    showToast('Enter a valid 10-digit phone number', 'error'); return;
+  }
+  if (!password || password.length < 6) {
+    showToast('Password must be at least 6 characters', 'error'); return;
+  }
+  document.getElementById('otp_email_display').value = email;
+  showStep(2);
+}
+
+// ── OTP ──────────────────────────────────────────────────────────
+async function sendOtp() {
+  const email    = document.getElementById('email').value.trim();
+  const voter_id = document.getElementById('voter_id').value.trim();
+  const phone    = document.getElementById('phone').value.trim();
+  const btn      = document.getElementById('send_otp_btn');
+
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    // Phone is included here so the server can reject duplicates at OTP step
+    const res = await apiPost('/register', { step: 'send_otp', email, voter_id, phone });
+    if (res.success) {
+      showToast('OTP sent to ' + email, 'success');
+    } else {
+      showToast(res.message || 'Failed to send OTP', 'error');
+      // If server rejected, go back to step 1 so user can fix the field
+      setTimeout(() => showStep(1), 1500);
+    }
+  } catch (e) {
+    showToast('Network error — could not send OTP', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Resend OTP';
+  }
+}
+
+async function verifyOtp() {
+  const email = document.getElementById('email').value.trim();
+  const otp   = document.getElementById('otp_input').value.trim();
+  if (!otp) { showToast('Enter the OTP code', 'error'); return; }
+
+  try {
+    const res = await apiPost('/register', { step: 'verify_otp', email, otp });
+    if (res.success) {
+      document.getElementById('otp_verified_msg').style.display = 'block';
+      showToast('OTP verified ✅', 'success');
+      setTimeout(() => showStep(3), 900);
+    } else {
+      showToast(res.message || 'Invalid OTP', 'error');
+    }
+  } catch (e) {
+    showToast('Network error — could not verify OTP', 'error');
+  }
+}
+
+// ── Face / Voter Photo ───────────────────────────────────────────
+let _regCam = null;
+
+async function startRegCamera() {
+  const startBtn   = document.getElementById('start_cam_btn');
+  const captureBtn = document.getElementById('capture_face_btn');
+  startBtn.disabled = true; startBtn.textContent = 'Starting…';
+
+  // AdvancedWebcam from biometric.js
+  _regCam = new AdvancedWebcam('reg_video', 'reg_canvas', 'reg_cam_status');
+  const ok = await _regCam.start();
+
+  if (ok) {
+    startBtn.textContent     = '✅ Camera On';
+    captureBtn.disabled      = false;
+    captureBtn.style.opacity = '1';
+    showToast('Camera ready — position your face clearly', 'info');
+  } else {
+    // Simulation mode — capture still works (draws placeholder)
+    startBtn.disabled        = false;
+    startBtn.textContent     = '▶ Start Camera';
+    captureBtn.disabled      = false;
+    captureBtn.style.opacity = '1';
+    showToast('Camera unavailable — using simulation mode', 'warning');
+  }
+}
+
+async function captureRegFace() {
+  if (!_regCam) { showToast('Start the camera first', 'error'); return; }
+
+  const imageData = _regCam.capture();
+  if (!imageData)  { showToast('Capture failed — try again', 'error'); return; }
+
+  // Extract 128-D face descriptor for server-side dedup
+  if (!window._faceEngine) {
+    window._faceEngine = new FaceVerificationEngine();
+    await window._faceEngine.loadModels();
+  }
+  const video = document.getElementById('reg_video');
+  const desc  = await window._faceEngine.getDescriptor(video);
+  window._regFaceDescriptor = desc ? Array.from(desc) : null;
+  if (!desc) {
+    showToast('No face detected — please look directly at camera', 'error');
+    return;
+  }
+
+  // Show preview
+  document.getElementById('face_preview').src            = imageData;
+  document.getElementById('face_preview_wrap').style.display = 'block';
+  document.getElementById('capture_face_btn').style.display  = 'none';
+  document.getElementById('recapture_btn').style.display     = 'inline-block';
+
+  // Store for final submit
+  window._regFaceImage = imageData;
+  showToast('Voter photo captured ✅', 'success');
+}
+
+function recaptureRegFace() {
+  document.getElementById('face_preview_wrap').style.display = 'none';
+  document.getElementById('capture_face_btn').style.display  = 'inline-block';
+  document.getElementById('recapture_btn').style.display     = 'none';
+  window._regFaceImage = null;
+  window._regFaceDescriptor = null;
+  showToast('Retake your photo', 'info');
+}
+
+// ── Fingerprint ──────────────────────────────────────────────────
+let _fpScanner = null;
+
+async function startFPScan() {
+  const btn = document.getElementById('fp_scan_btn');
+  btn.disabled = true; btn.textContent = 'Scanning…';
+
+  try {
+    // AdvancedFingerprintScanner from biometric.js
+    _fpScanner = new AdvancedFingerprintScanner('fp_container');
+    // Bind voter_id so the token is stored under this voter's key in localStorage
+    _fpScanner.setVoterId(document.getElementById('voter_id').value.trim());
+    const fpData = await _fpScanner.scan();  // animated scan → returns FP hash
+
+    window._regFpData = fpData;
+    document.getElementById('fp_done_msg').style.display = 'block';
+    btn.textContent = '✅ Fingerprint Registered';
+    showToast('Fingerprint template stored ✅', 'success');
+  } catch (err) {
+    console.error('FP scan error:', err);
+    showToast('Fingerprint scan failed — try again', 'error');
+    btn.disabled = false; btn.textContent = '🖐 Retry Scan';
+  }
+}
+
+// ── Final Submit ─────────────────────────────────────────────────
+async function submitRegistration() {
+  // Read ALL step-1 fields — phone must be included in the payload
+  const voter_id = document.getElementById('voter_id').value.trim();
+  const name     = document.getElementById('name').value.trim();
+  const email    = document.getElementById('email').value.trim();
+  const phone    = document.getElementById('phone').value.trim();
+  const password = document.getElementById('password').value;
+
+  // Front-end guards (server mirrors these checks)
+  if (!voter_id || !name || !email || !phone || !password) {
+    showToast('Please complete all personal details in Step 1', 'error');
+    showStep(1);   // send user back to fix the missing field
+    return;
+  }
+  if (!window._regFaceImage) {
+    showToast('Please capture your voter photo first', 'warning'); return;
+  }
+  if (!window._regFpData) {
+    showToast('Please complete the fingerprint scan first', 'warning'); return;
+  }
+
+  const payload = {
+    step:            'register',
+    voter_id,
+    name,
+    email,
+    phone,
+    password,
+    face_image:      window._regFaceImage,
+    face_descriptor: window._regFaceDescriptor || null,  // 128-D for server dedup
+    fingerprint:     window._regFpData,
+  };
+
+  try {
+    const res = await apiPost('/register', payload);
+    if (res.success) {
+      if (_regCam) _regCam.stop();   // release webcam stream
+      showStep(4);
+    } else {
+      showToast(res.message || 'Registration failed', 'error');
+    }
+  } catch (e) {
+    showToast('Network error — please try again', 'error');
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}EVM — Digital Voting System{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">🗳️ &nbsp;ELECTION COMMISSION OF INDIA</div>
+    <h2><span data-i18n="welcome">Welcome to Digital Democracy</span> —<br>Secure EVM Platform</h2>
+    <p data-i18n="tagline">India's most trusted electronic voting platform. Verified biometrics, encrypted ballots, transparent results.</p>
+    <div class="hero-actions">
+      <a href="{{ url_for('login') }}" class="btn-primary"><i class="fa fa-vote-yea"></i> <span data-i18n="vote_now">Vote Now</span></a>
+      <a href="{{ url_for('register') }}" class="btn-secondary"><i class="fa fa-user-plus"></i> Register as Voter</a>
+      <a href="{{ url_for('results') }}" class="btn-secondary"><i class="fa fa-chart-bar"></i> <span data-i18n="view_results">Results</span></a>
+    </div>
+    <div class="stats-row">
+      <div class="stat-item">
+        <div class="stat-num" id="stat-voters">{{ total_voters }}</div>
+        <div class="stat-label">Registered Voters</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" id="stat-votes">{{ total_votes }}</div>
+        <div class="stat-label">Votes Cast</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">100%</div>
+        <div class="stat-label">Secure &amp; Encrypted</div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="evm-device">
+      <div class="evm-screen">
+        <p>{{ settings.election_name }}</p>
+        <p style="font-size:9px;margin-top:4px;color:#7eb7ff;">{{ settings.election_date }}</p>
+        <img src="{{ url_for('static', filename='images/logo2.png') }}" style="height:28px;margin-top:8px;" alt="Election Logo">
+
+      </div>
+      <div class="evm-buttons">
+        <div class="evm-btn-row">
+          <div class="evm-btn">🌟 BJP</div>
+          <div class="evm-btn">🌸 INC</div>
+        </div>
+        <div class="evm-btn-row">
+          <div class="evm-btn active">⚡ RSP</div>
+          <div class="evm-btn">🌿 BJD</div>
+        </div>
+        <div class="evm-btn-row">
+          <div class="evm-btn">☀️ UML</div>
+          <div class="evm-btn">🚫 NOTA</div>
+        </div>
+      </div>
+      <div class="evm-bottom">
+        <button class="evm-vote-btn">VOTE ✓</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="features-section">
+  <h2 class="features-title">Why Digital EVM?</h2>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🔐</div>
+      <h3>Biometric Security</h3>
+      <p>Face recognition and fingerprint authentication ensure only verified voters can cast ballots. Zero duplicate votes.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📱</div>
+      <h3>OTP Verification</h3>
+      <p>Every voter registration is verified via One-Time Password sent to registered mobile/email.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <h3>Live Results</h3>
+      <p>Real-time vote counting with visual bar charts and percentage breakdowns.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🌐</div>
+      <h3>Multi-Language</h3>
+      <p>Full support for English, Hindi, and Nepali to ensure accessibility for all voters.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📋</div>
+      <h3>Audit Trail</h3>
+      <p>Complete immutable log of all system events — logins, votes, admin actions — for transparency.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">♿</div>
+      <h3>Accessible Design</h3>
+      <p>Large touch-friendly buttons, high contrast colors, and clear text for elderly and disabled voters.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}
