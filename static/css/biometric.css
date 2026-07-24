@@ -1,0 +1,309 @@
+/* ═══════════════════════════════════════════════
+   EVM Advanced Biometrics — Styles
+   ═══════════════════════════════════════════════ */
+
+/* ── Webcam with canvas overlay ─────────────── */
+.webcam-box-advanced {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #060f1c;
+  border: 2px solid rgba(0, 180, 255, 0.25);
+  box-shadow: 0 0 30px rgba(0,150,255,0.12);
+}
+
+.webcam-box-advanced video,
+.webcam-box-advanced canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4/3;
+}
+
+.webcam-box-advanced canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none;
+}
+
+.webcam-box-advanced .face-oval {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 55%; aspect-ratio: 3/4;
+  border: 2.5px dashed rgba(0, 220, 150, 0.4);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: oval-pulse 2.5s infinite;
+}
+
+@keyframes oval-pulse {
+  0%,100% { border-color: rgba(0, 220, 150, 0.35); }
+  50%      { border-color: rgba(0, 220, 150, 0.75); }
+}
+
+.webcam-status {
+  padding: 8px 14px;
+  font-size: 12.5px;
+  text-align: center;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: background 0.3s;
+}
+
+.status-active  { background: rgba(0,230,118,0.1); color: #00E676; }
+.status-success { background: rgba(0,230,118,0.12); color: #00E676; }
+.status-warning { background: rgba(255,183,0,0.1);  color: #FFB700; }
+.status-error   { background: rgba(255,50,50,0.1);  color: #FF5252; }
+
+/* ── Liveness Detector ───────────────────────── */
+.liveness-panel {
+  background: rgba(10,20,40,0.85);
+  border: 1px solid rgba(0,180,255,0.2);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 12px;
+}
+
+.liveness-status {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.3s;
+}
+
+.liveness-status.challenge {
+  background: rgba(0,150,255,0.1);
+  color: #60B4FF;
+  border: 1px solid rgba(0,150,255,0.3);
+  animation: liveness-pulse 0.8s infinite;
+}
+
+.liveness-status.success {
+  background: rgba(0,230,118,0.1);
+  color: #00E676;
+  border: 1px solid rgba(0,230,118,0.3);
+}
+
+.liveness-status.error {
+  background: rgba(255,50,50,0.1);
+  color: #FF5252;
+  border: 1px solid rgba(255,50,50,0.25);
+}
+
+.liveness-prompt { font-size: 16px; }
+
+@keyframes liveness-pulse {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+
+/* ── Fingerprint Scanner ─────────────────────── */
+.fp-scanner-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 16px;
+}
+
+.fp-sensor-frame {
+  position: relative;
+  width: 200px;
+  height: 240px;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 2px solid rgba(0,150,255,0.3);
+  box-shadow: 0 0 20px rgba(0,100,255,0.15);
+  background: #060f1c;
+}
+
+.fp-canvas {
+  display: block;
+  width: 200px;
+  height: 240px;
+}
+
+.fp-sensor-corners { position: absolute; inset: 0; pointer-events: none; }
+.fp-corner {
+  position: absolute;
+  width: 14px; height: 14px;
+  border-color: rgba(0,200,255,0.7);
+  border-style: solid;
+}
+.fp-corner.tl { top:8px; left:8px;   border-width: 2px 0 0 2px; }
+.fp-corner.tr { top:8px; right:8px;  border-width: 2px 2px 0 0; }
+.fp-corner.bl { bottom:8px; left:8px;  border-width: 0 0 2px 2px; }
+.fp-corner.br { bottom:8px; right:8px; border-width: 0 2px 2px 0; }
+
+.fp-glow-ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: 20px;
+  pointer-events: none;
+  transition: box-shadow 0.5s;
+}
+
+.scanning .fp-glow-ring {
+  box-shadow: 0 0 0 3px rgba(0,200,255,0.25), 0 0 30px rgba(0,200,255,0.2) inset;
+  animation: fp-glow-anim 1s infinite alternate;
+}
+
+.done .fp-glow-ring {
+  box-shadow: 0 0 0 3px rgba(0,230,118,0.4), 0 0 25px rgba(0,230,118,0.15) inset;
+}
+
+@keyframes fp-glow-anim {
+  from { box-shadow: 0 0 0 2px rgba(0,200,255,0.2), 0 0 20px rgba(0,200,255,0.1) inset; }
+  to   { box-shadow: 0 0 0 4px rgba(0,200,255,0.5), 0 0 40px rgba(0,200,255,0.3) inset; }
+}
+
+.fp-info { text-align: center; }
+.fp-icon-lg {
+  font-size: 36px;
+  line-height: 1;
+  margin-bottom: 6px;
+  transition: transform 0.3s;
+}
+.done .fp-icon-lg { animation: fp-done-pop 0.4s ease; }
+@keyframes fp-done-pop { 0%{transform:scale(0.7)} 60%{transform:scale(1.2)} 100%{transform:scale(1)} }
+
+.fp-label-main {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, #eaf0ff);
+}
+
+.fp-label-sub {
+  font-size: 12px;
+  color: var(--text-muted, #7a8aaa);
+  margin-top: 3px;
+}
+
+/* Progress bar */
+.fp-bar-wrap {
+  width: 100%;
+  max-width: 200px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fp-bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.fp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #007bff, #00d4ff);
+  border-radius: 3px;
+  transition: width 0.12s linear;
+}
+
+.done .fp-bar-fill {
+  background: linear-gradient(90deg, #00b894, #00e676);
+}
+
+.fp-bar-label {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--text-muted, #7a8aaa);
+  min-width: 32px;
+  text-align: right;
+}
+
+/* Step indicators */
+.fp-steps {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.fp-step {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.3);
+  padding: 3px 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.fp-step.active {
+  color: #00d4ff;
+  border-color: rgba(0,200,255,0.4);
+  background: rgba(0,180,255,0.08);
+}
+
+.done .fp-step:last-child {
+  color: #00E676;
+  border-color: rgba(0,230,118,0.4);
+  background: rgba(0,230,118,0.08);
+}
+
+.fp-step-arrow { color: rgba(255,255,255,0.15); font-size: 10px; }
+
+/* ── Multi-face warning banner ───────────────── */
+.multi-face-warning {
+  display: none;
+  background: rgba(255, 50, 50, 0.15);
+  border: 1px solid rgba(255,50,50,0.4);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #FF5252;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  margin-top: 8px;
+  animation: warning-flash 0.5s infinite alternate;
+}
+.multi-face-warning.visible { display: block; }
+
+@keyframes warning-flash {
+  from { opacity: 0.8; }
+  to   { opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.face-match-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+.face-match-badge.match {
+  background: rgba(0,230,118,0.12);
+  border: 1px solid rgba(0,230,118,0.35);
+  color: #00E676;
+}
+
+.face-match-badge.mismatch {
+  background: rgba(255,50,50,0.12);
+  border: 1px solid rgba(255,50,50,0.35);
+  color: #FF5252;
+}
